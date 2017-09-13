@@ -1,0 +1,284 @@
+1. virtualenv --python=python3 --always-copy envproj
+2. source envproj/bin/activate
+
+# Install django in environment
+3. pip install django
+
+# Install gunicorn to run django server with gunicorn
+4. pip install gunicorn
+
+# Create a django project
+5. django-admin.py startproject transp
+6. cd transp
+
+# Run server with gunicorn
+7. gunicorn transp.wsgi:application
+
+# Create the bash script to start gunicorn server
+8. vi start_gunicorn.sh
+
+# Give the permission to script to be executable
+9. sudo chmod +x start_gunicorn.sh
+
+# Create softlink for the script so that it is placed in /usr/bin/
+10. sudo ln -s /home/ritesh/transport3/start_gunicorn.sh /usr/bin/start_gunicorn
+
+
+************************************************************************
+##################### Set Up Static Files in Django  ###################
+
+1. Create a directory called 'static' in base of project.
+   >> mkdir static
+
+2. In setting file add path for STATIC_ROOT.
+   STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+3. Whenever make any changes, run the following command to collect all the static file in STATIC_ROOT
+   python manage.py collectstatic
+
+4. In base urls.py add below data
+
+   from django.conf.urls.static import static
+   from django.conf import settings
+
+   urlpatterns = [....] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+##################### Set Up Static Files in Django  ###################
+************************************************************************
+
+
+************************************************************************
+##################### Set Up Template Files in Django  ###################
+
+1. Create a directory called 'templates' in base of project.
+   >> mkdir templates
+
+2. In setting file add path of the template in TEMPLATES property DIRS
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+      +++>  'DIRS': [os.path.join(BASE_DIR, 'templates'), ],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+##################### Set Up Template Files in Django  ###################
+************************************************************************
+
+
+*******************************************************************************
+#####################  Now setup postgres for project  ########################
+
+1. pip install psycopg2
+
+2. Login to postgres and create database
+    1. sudo -i -u postgres
+    2. psql
+    3. craete database transp_db;
+
+3. Update the database settigs in settings.py
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'transp_db',
+        'USER': 'postgres',
+        'PASSWORD': '',
+        'HOST': 'localhost',
+        'PORT': '',
+    }
+}
+
+#####################  Now setup postgres for project  ########################
+*******************************************************************************
+
+#########################################################################################################
+####################################  Setup React Project In Django  ####################################
+#########################################################################################################
+
+1. cd static
+2. create a js directory
+  >> mkdir js
+3. cd js
+4. create a folder reactor
+  >> mkdir reactor
+5. cd reactor
+
+6. yarn init                         # Initialize project
+7. yarn add webpack                  # Add webpack package
+8. yarn add webpack-bundle-tracker   # This package will keep help in tracking the bundle created by webpack in hash form
+9. yarn add react                    # React installation package
+10. yarn add react-dom               # add react dom package
+11. yarn add babel-core              # Babel basic package
+12. yarn add babel-loader            # Add babel loader package
+13. yarn add babel-preset-react      # This is the plugin used by babel loader to translate JSX syntax
+14. yarn add babel-preset-es2015     # This is the plugin used by babel loader to translate ES6 syntax
+15. yarn add path                    # Package to reslove the path
+16. Add webpack.config.js file
+
+**********************************************************************************************************
+**********************************************************************************************************
+***************************************  Basic webpack config js file  ***********************************
+**********************************************************************************************************
+**********************************************************************************************************
+
+var path = require('path');
+//var webpack = require('webpack')
+var BundleTracker = require('webpack-bundle-tracker');
+
+var config = {
+    //The base directory or the absolute path for resoving entry option
+    context: __dirname,
+    // Entry point for webpack
+    entry: './index',
+    // Path for webpack bundle
+    output: {
+        path: path.resolve('./bundles/'),
+        filename: 'bundle.js'
+    },
+
+    plugins: [
+        //tells webpack where to store data about your bundles
+        new BundleTracker({filename: './webpack-stats.json'})
+    ],
+
+    module: {
+        loaders: [
+            {
+                test: /\.jsx$/,   // A regular expression to include what kind of file to be processed by loader
+                exclude: /node_modules/,
+                loader: 'babel-loader',
+                query: {
+                    presets: ['es2015', 'react']
+                }
+            }
+        ]
+    },
+
+    resolve: {
+        //tells webpack where to look for modules
+        //modulesDirectories: ['node_modules'],
+        //extensions that should be used to resolve modules
+        extensions: ['.js', '.jsx']
+    }
+};
+module.exports = config;
+
+**********************************************************************************************************
+**********************************************************************************************************
+**********************************************************************************************************
+**********************************************************************************************************
+
+17. Execute webpack command and it will generate bundle in directory and file mention in output section
+    i.e  >> webpack
+    "bundle.js" will be generated in directory "bundles"
+
+18. Use the generated bundle in html using below format
+    <script src="{% static "js/reactor/bundles/bundle.js" %}"></script>
+
+
+**********************************************************************************************************
+**********************************************************************************************************
+*****************************   Basic setup for bundle tracker for webpack   *****************************
+**********************************************************************************************************
+**********************************************************************************************************
+
+1. Update the output section of webpack to contains dynamic output file name
+   i.e  
+    output: {
+        path: path.resolve('./bundles/'),
+        // filename: 'bundle.js'
+        filename: '[name]-[hash].js'
+    }
+
+2. Add a plugin section for BundleTracker instance, where update file info will be at webpack-stats.json file
+   i.e
+    plugins: [
+        //tells webpack where to store data about your bundles
+        new BundleTracker({filename: './webpack-stats.json'})
+    ],
+
+3. Install python django-webpack-loader in backend
+   i.e  >> pip install django-webpack-loader
+
+4. Add "webpack_loader" in INSTALLED_APPS
+
+5. Add the below settings for webpack bundler in settings.py file
+
+WEBPACK_LOADER = {
+    'DEFAULT': {
+        # When this is set to true webpack-loader will read the stat file only once
+        # That's why with this setting it will be True for production but False for development
+        'CACHE': not DEBUG,
+        # must end with slash. This is the path of bundle directory
+        'BUNDLE_DIR_NAME': 'js/reactor/bundles/',
+        # This is the path where webpack-stats.json file is generated by webpack
+        'STATS_FILE': os.path.join(STATIC_ROOT, 'js/reactor/webpack-stats.json'),
+    }
+}
+
+6. In template we have to add the below line to use the bundler
+    1. {% load render_bundle from webpack_loader %}   (on the very top of template)
+    
+    # (render_bundle will render the proper <script> and <link> tags needed in your template.)
+    2. {% render_bundle 'main' %}
+
+**********************************************************************************************************
+**********************************************************************************************************
+**********************************************************************************************************
+**********************************************************************************************************
+
+##########################################################################################################
+################## Link for reference for react setup with webpack and webpack bundler  ##################
+##########################################################################################################
+
+1. http://geezhawk.github.io/using-react-with-django-rest-framework
+2. https://github.com/ezhome/django-webpack-loader
+3. http://owaislone.org/blog/webpack-plus-reactjs-and-django/
+
+##########################################################################################################
+
+
+##########################################################################################################
+###############################  Setup react-bootstrap for react project  ################################
+##########################################################################################################
+
+1. yarn add react-bootstrap  // Install react-bootstrap package
+
+2. Add the css files of bootstrap in html page
+   i.e
+   <!-- Latest compiled and minified CSS -->
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css">
+
+   <!-- Optional theme -->
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap-theme.min.css">
+
+3. Let say you want to use button component of react bootstrap. Then follow the below instructions.
+
+   	var React = require('react');
+	import { Button } from 'react-bootstrap';
+
+	var HelloReactBootstrap = React.createClass(
+	    {
+		render: function(){
+		    return (
+		        <Button bsStyle="primary">Primary</Button>
+		    );
+		}
+	    }
+	);
+
+	module.exports = HelloReactBootstrap;
+
+##########################################################################################################
+##########################################################################################################
+
